@@ -1,24 +1,24 @@
-classdef Controller < handle
+classdef Controller_back < handle
     properties (SetAccess = private)
         version = '1.0'
         APassenger % Array of passenger
         ADriver % Array of driver
         MRegion % Matrix (2 dimensional) of region
-        MRegionMap 
+        MRegionMap
         numPassenger = 0
         numDriver = 0        
         hMain
     end
     
     properties (SetAccess = public)
-        maxNumPassenger = 300
-        maxNumDriver = 200
-        dimRegion1 = 50
-        dimRegion2 = 50
+        maxNumPassenger = 500
+        maxNumDriver = 250
+        dimRegion1 = 500
+        dimRegion2 = 500
         booDebug = 0;
         
-        disDriverRandom = 5;
-        disPassengerTarget = 20;
+        disDriverRandom = 10;
+        disPassengerTarget = 50;
     end
     
     methods
@@ -32,17 +32,15 @@ classdef Controller < handle
             obj.APassenger(obj.maxNumPassenger) = Passenger();
             for i = 1:1:obj.maxNumPassenger
                 listen(obj.APassenger(i), obj);
-                obj.APassenger(i).id = i;
             end
             obj.ADriver = Driver();
             obj.ADriver(obj.maxNumDriver) = Driver();
             for i = 1:1:obj.maxNumDriver
                 listen(obj.ADriver(i), obj);
-                obj.ADriver(i).id = i;
             end            
-            % obj.MRegion = Region(); 
-            % obj.MRegion(obj.dimRegion1, obj.dimRegion2) = obj.MRegion();
-            load city_map_50;
+            obj.MRegion = Region(); 
+            obj.MRegion(obj.dimRegion1, obj.dimRegion2) = obj.MRegion();
+            load city_map;
             obj.MRegionMap = city_map;      
             obj.hMain = figure;              
             drawnow;
@@ -71,12 +69,8 @@ classdef Controller < handle
         
         function [] = requesthandle(obj, src, ~)    
             driverIndex = finddriver(obj, src);
-            if(driverIndex == -1)
-                return
-            else
-                commanddriverafterselected(obj.ADriver(driverIndex), src, ...
-                    obj.MRegionMap);
-            end
+            commanddriverafterselected(obj.ADriver(driverIndex), src, ...
+                obj.MRegionMap);
         end
         
         function [] = departhandle(obj, src, ~)
@@ -101,7 +95,6 @@ classdef Controller < handle
             if(~mod(src.time - 1, 50))
                 obj.generatepassenger 
             end
-            % obj.updatepassenger
             % obj.setdrivertarget % drivers whos are not requested
             % now included in the updatedriver function
             obj.updatedriver % drivers move torward target
@@ -253,21 +246,15 @@ function driverIndex = finddriver(obj, Passenger)
             end
         end
     end
-    [numMin, index] = min(driverDis(:, 1));
-    if(numMin == (obj.dimRegion1 * 2 + 1)) % no car is spared
-        driverIndex = -1;
-        disp('No car can be spared');
-    else
-        driverIndex = driverDis(index, 2);
-    end
+    [~, index] = min(driverDis(:, 1));
+    driverIndex = driverDis(index, 2);
 end
 
 function [] = commanddriverafterselected(Dri, Pas, map)
-    
+    Dri.status = 'busy';
     Dri.target = Pas.coor;
     % path planning
     Dri.pathplan(map);
-    Dri.status = 'busy';
     Dri.ownPassenger = Pas;
 end
 
@@ -286,7 +273,7 @@ function logic = calclogicfromregion(obj)
 end
 
 function [] = driverinitialization(obj)
-    numDriverExpect = 50;
+    numDriverExpect = 200;
     numPoint = obj.dimRegion1 .* obj.dimRegion2;
     numP = numDriverExpect / numPoint;
     logic = randsrc(obj.dimRegion1, obj.dimRegion2, [[0 1];[1- numP numP]]);

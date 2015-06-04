@@ -1,9 +1,9 @@
 clear; close all; clc; tic;
-warning off %#ok<WNOFF>
-% dbstop if error
+% warning off %#ok<WNOFF>
+dbstop if error
 TestController = Controller();
 TestTimer = Timer(TestController, 0, 1, 'second');
-for i = 1:1:300
+for i = 1:1:500
     TestTimer.timepass;
 %     pause(1)
 end 

@@ -1,5 +1,6 @@
 classdef Passenger < handle
     properties (SetAccess = {?Passenger, ?Controller})
+        id
         status = 'invalid' % waiting 
         coor = [-1 -1]
         timeWait = 0       
