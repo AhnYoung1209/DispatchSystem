@@ -3,7 +3,7 @@ clear; close all; clc; tic;
 dbstop if error
 TestController = Controller();
 TestTimer = Timer(TestController, 0, 1, 'second');
-for i = 1:1:500
+for i = 1:1:2000
     TestTimer.timepass;
 %     pause(1)
 end 

@@ -17,6 +17,8 @@ classdef Controller < handle
         dimRegion2 = 50
         booDebug = 0;
         
+        numDriverExpect = 50;
+        numPassengerExpect = 50;
         disDriverRandom = 5;
         disPassengerTarget = 20;
     end
@@ -99,7 +101,7 @@ classdef Controller < handle
         % jump is executed every time the timer is updated (with event
         % called TimeRefresh)
         function [] = jump(obj, src, ~) % src and eventData
-            if(~mod(src.time - 1, 5000))
+            if(~mod(src.time - 1, 50))
                 obj.generatepassenger 
             end
             obj.updatepassenger
@@ -287,14 +289,14 @@ end
 
 function logic = calclogicfromregion(obj)   
     % extremely simplified version
-    numPassengerExpect = 200;
+    numPassengerExpect = obj.numPassengerExpect;
     numPoint = obj.dimRegion1 .* obj.dimRegion2;
     numP = numPassengerExpect / numPoint;    
     logic = randsrc(obj.dimRegion1, obj.dimRegion2, [[0 1];[1- numP numP]]);
 end
 
 function [] = driverinitialization(obj)
-    numDriverExpect = 50;
+    numDriverExpect = obj.numDriverExpect;
     numPoint = obj.dimRegion1 .* obj.dimRegion2;
     numP = numDriverExpect / numPoint;
     logic = randsrc(obj.dimRegion1, obj.dimRegion2, [[0 1];[1- numP numP]]);
