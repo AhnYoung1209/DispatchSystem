@@ -87,21 +87,22 @@ classdef Controller < handle
             src.ownPassenger.status = 'talking';
         end
         
-        function [] = arrivehandle(~, src, ~)
+        function [] = arrivehandle(obj, src, ~)
             src.status = 'valid';
             src.ownPassenger.status = 'invalid';
             src.posPath = 0;
             src.path = [];
+            obj.numPassenger = obj.numPassenger - 1;
         end
         
         % jump is the core function of controller
         % jump is executed every time the timer is updated (with event
         % called TimeRefresh)
         function [] = jump(obj, src, ~) % src and eventData
-            if(~mod(src.time - 1, 50))
+            if(~mod(src.time - 1, 5000))
                 obj.generatepassenger 
             end
-            % obj.updatepassenger
+            obj.updatepassenger
             % obj.setdrivertarget % drivers whos are not requested
             % now included in the updatedriver function
             obj.updatedriver % drivers move torward target
@@ -141,6 +142,23 @@ classdef Controller < handle
                 end
                 if(count == length(X))
                     break;
+                end
+            end
+        end
+        
+        function [] = updatepassenger(obj)
+            count = 0;
+            for i = 1:1:obj.maxNumPassenger
+                if(strcmp(obj.APassenger(i).status, 'invalid'))
+                    continue
+                else
+                    count = count + 1;
+                    if(strcmp(obj.APassenger(i).status, 'waiting'))
+                        obj.APassenger(i).driverrequest
+                    end
+                    if(count == obj.numPassenger)
+                        break
+                    end
                 end
             end
         end
@@ -232,8 +250,7 @@ classdef Controller < handle
             end
             % code below is optional (display target)
             drawnow;      
-        end
-        
+        end        
     end
 end
 
@@ -256,19 +273,10 @@ function driverIndex = finddriver(obj, Passenger)
     [numMin, index] = min(driverDis(:, 1));
     if(numMin == (obj.dimRegion1 * 2 + 1)) % no car is spared
         driverIndex = -1;
-        disp('No car can be spared');
+%         disp('No car can be spared');
     else
         driverIndex = driverDis(index, 2);
     end
-end
-
-function [] = commanddriverafterselected(Dri, Pas, map)
-    
-    Dri.target = Pas.coor;
-    % path planning
-    Dri.pathplan(map);
-    Dri.status = 'busy';
-    Dri.ownPassenger = Pas;
 end
 
 function distance = mdist(Dri, Pas)
@@ -279,7 +287,7 @@ end
 
 function logic = calclogicfromregion(obj)   
     % extremely simplified version
-    numPassengerExpect = 50;
+    numPassengerExpect = 200;
     numPoint = obj.dimRegion1 .* obj.dimRegion2;
     numP = numPassengerExpect / numPoint;    
     logic = randsrc(obj.dimRegion1, obj.dimRegion2, [[0 1];[1- numP numP]]);
@@ -305,6 +313,15 @@ function [] = driverinitialization(obj)
         obj.ADriver(i).target = obj.ADriver(i).coor;
         obj.ADriver(i).status = 'valid';
     end    
+end
+
+function [] = commanddriverafterselected(Dri, Pas, map)    
+    Dri.target = Pas.coor;
+    % path planning
+    Dri.pathplan(map);
+    Dri.status = 'busy';
+    Dri.ownPassenger = Pas;
+    Dri.ownPassenger.status = 'responded'; % responded waiting talking invalid
 end
 
 function outputCoor = targetset(city_map, coor, distance)

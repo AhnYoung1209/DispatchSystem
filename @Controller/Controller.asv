@@ -32,11 +32,13 @@ classdef Controller < handle
             obj.APassenger(obj.maxNumPassenger) = Passenger();
             for i = 1:1:obj.maxNumPassenger
                 listen(obj.APassenger(i), obj);
+                obj.APassenger(i).id = i;
             end
             obj.ADriver = Driver();
             obj.ADriver(obj.maxNumDriver) = Driver();
             for i = 1:1:obj.maxNumDriver
                 listen(obj.ADriver(i), obj);
+                obj.ADriver(i).id = i;
             end            
             % obj.MRegion = Region(); 
             % obj.MRegion(obj.dimRegion1, obj.dimRegion2) = obj.MRegion();
@@ -69,8 +71,12 @@ classdef Controller < handle
         
         function [] = requesthandle(obj, src, ~)    
             driverIndex = finddriver(obj, src);
-            commanddriverafterselected(obj.ADriver(driverIndex), src, ...
-                obj.MRegionMap);
+            if(driverIndex == -1)
+                return
+            else
+                commanddriverafterselected(obj.ADriver(driverIndex), src, ...
+                    obj.MRegionMap);
+            end
         end
         
         function [] = departhandle(obj, src, ~)
@@ -95,6 +101,7 @@ classdef Controller < handle
             if(~mod(src.time - 1, 50))
                 obj.generatepassenger 
             end
+            obj.updatepassenger
             % obj.setdrivertarget % drivers whos are not requested
             % now included in the updatedriver function
             obj.updatedriver % drivers move torward target
@@ -136,6 +143,20 @@ classdef Controller < handle
                     break;
                 end
             end
+        end
+        
+        function [] = updatepassenger(obj)
+            count = 0;
+            for i = 1:1:obj.maxNumPassenger
+                if(strcmp(obj.APassenger(i).status, 'invalid'))
+                    continue
+                else
+                    count = count + 1;
+                    if(strcmp(obj.APassenger(i).status, 'waiting'))
+                        obj.APassenger(i).driverrequest
+                    end
+                    if(count == obj.numPassenger)
+                        break
         end
         
         function [] = updatedriver(obj)
@@ -227,6 +248,15 @@ classdef Controller < handle
             drawnow;      
         end
         
+        function [] = commanddriverafterselected(Dri, Pas, map)    
+            Dri.target = Pas.coor;
+            % path planning
+            Dri.pathplan(map);
+            Dri.status = 'busy';
+            Dri.ownPassenger = Pas;
+            Dri.ownPassenger.status = 'responded'; % responded waiting talking invalid
+        end
+        
     end
 end
 
@@ -246,17 +276,13 @@ function driverIndex = finddriver(obj, Passenger)
             end
         end
     end
-    [~, index] = min(driverDis(:, 1));
-    driverIndex = driverDis(index, 2);
-end
-
-function [] = commanddriverafterselected(Dri, Pas, map)
-    
-    Dri.target = Pas.coor;
-    % path planning
-    Dri.pathplan(map);
-    Dri.status = 'busy';
-    Dri.ownPassenger = Pas;
+    [numMin, index] = min(driverDis(:, 1));
+    if(numMin == (obj.dimRegion1 * 2 + 1)) % no car is spared
+        driverIndex = -1;
+        disp('No car can be spared');
+    else
+        driverIndex = driverDis(index, 2);
+    end
 end
 
 function distance = mdist(Dri, Pas)
@@ -267,14 +293,14 @@ end
 
 function logic = calclogicfromregion(obj)   
     % extremely simplified version
-    numPassengerExpect = 20;
+    numPassengerExpect = 50;
     numPoint = obj.dimRegion1 .* obj.dimRegion2;
     numP = numPassengerExpect / numPoint;    
     logic = randsrc(obj.dimRegion1, obj.dimRegion2, [[0 1];[1- numP numP]]);
 end
 
 function [] = driverinitialization(obj)
-    numDriverExpect = 20;
+    numDriverExpect = 50;
     numPoint = obj.dimRegion1 .* obj.dimRegion2;
     numP = numDriverExpect / numPoint;
     logic = randsrc(obj.dimRegion1, obj.dimRegion2, [[0 1];[1- numP numP]]);
