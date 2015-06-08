@@ -17,10 +17,13 @@ classdef Controller < handle
         dimRegion2 = 50
         booDebug = 0;
         
+        refreshgap = 50;
         numDriverExpect = 50;
         numPassengerExpect = 50;
         disDriverRandom = 5;
         disPassengerTarget = 20;
+        rateDriverLeave = 0.05;
+        rateDriverCome = 0.5;
     end
     
     methods
@@ -101,16 +104,74 @@ classdef Controller < handle
         % jump is executed every time the timer is updated (with event
         % called TimeRefresh)
         function [] = jump(obj, src, ~) % src and eventData
-            if(~mod(src.time - 1, 50))
+            if(~mod(src.time - 1, obj.refreshgap))
                 obj.generatepassenger 
-            end
+            end            
             obj.updatepassenger
-            % obj.setdrivertarget % drivers whos are not requested
-            % now included in the updatedriver function
+            if(~mod(src.time - 1, obj.refreshgap))
+                obj.changenumdriver
+            end
             obj.updatedriver % drivers move torward target
             obj.objplot;
         end
             
+        function changenumdriver(obj)
+            % updating the driver
+            % come and leave
+            numValidDriver = obj.countvaliddriver;
+            numGener = floor(obj.numDriver * obj.rateDriverCome);
+            numLeave = floor(numValidDriver * obj.rateDriverLeave);
+            countGener = 0;
+            countLeave = 0;
+            for i = 1:1:obj.maxNumDriver
+                if(i == obj.maxNumDriver)
+                    disp('All space for driver is drained');
+                else
+                    if(numGener == 0)
+                        break
+                    end
+                    if(strcmp(obj.ADriver(i).status, 'invalid'))
+                        obj.ADriver(i).coor = targetset(obj.MRegionMap, [obj.dimRegion1/2 ...
+                            obj.dimRegion2/2], obj.dimRegion1/2 - 2);
+                        obj.ADriver(i).target = obj.ADriver(i).coor;
+                        obj.ADriver(i).status = 'valid';
+                        countGener = countGener + 1;
+                        obj.numDriver = obj.numDriver + 1;
+                    end
+                    if(countGener >= numGener)
+                        break;
+                    end
+                end
+            end
+            for i = 1:1:obj.maxNumDriver
+                if(numLeave == 0)
+                    break
+                end
+                if(strcmp(obj.ADriver(i).status, 'valid'))
+                    obj.ADriver(i).coor = [];
+                    obj.ADriver(i).target = [];
+                    obj.ADriver(i).status = 'invalid';
+                    countLeave = countLeave + 1;
+                    obj.numDriver = obj.numDriver - 1;
+                end
+                if(countLeave >= numLeave)
+                    break;
+                end
+            end          
+        end
+        
+        function count = countvaliddriver(obj)
+            count = 0;
+            for i = 1:1:obj.maxNumDriver
+                if(strcmp(obj.ADriver(i).status, 'valid'))
+                    count = count + 1;
+                end
+            end
+            if(count == 0)
+                disp('No driver is currently available');
+            end
+        end
+        
         function dispversion(obj, ~, ~)            
             disp(['This is controller with vrsion : ', obj.version]);   
             disp('Presented for the course of system engineering');
@@ -141,7 +202,7 @@ classdef Controller < handle
                         obj.disPassengerTarget);
                     % and request for a car
                     obj.APassenger(i).driverrequest
-                end
+                 end
                 if(count == length(X))
                     break;
                 end
@@ -357,8 +418,6 @@ function outputCoor = targetset(city_map, coor, distance)
         relaloc = randi([1,length(row)]);
         NextPosX = col(relaloc) + areaX(1) - 1;
         NextPosY = row(relaloc) + areaY(1) - 1;
-    end
-
-    
+    end    
     outputCoor = [NextPosX NextPosY];
 end
