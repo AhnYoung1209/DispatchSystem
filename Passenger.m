@@ -3,9 +3,11 @@ classdef Passenger < handle
         id
         status = 'invalid' % waiting 
         coor = [-1 -1]
-        timeWait = 0       
+        timeWait = 0 
+        timeThreshold = 20;
         cost = 0
-        target = [278 224]
+        target = [-1 -1]
+        ownDriver
     end
     properties (Transient)
         passengerListener
@@ -17,22 +19,47 @@ classdef Passenger < handle
     
     events
         DriverRequest
+        GiveUp
     end
     
     methods
         function obj = Passenger()
             if nargin == 0
             end
-        end    
+        end
+        
+        function [] = erase(obj)
+            obj.status = 'invalid';
+            obj.timeWait = 0;
+            obj.cost = 0;
+            obj.coor = [-1 -1];
+            obj.target = [-1 -1];
+            obj.ownDriver = [];
+        end
+        
+        function [] = giveup(obj)
+            notify(obj, 'GiveUp');
+            obj.erase();
+        end
         
         function [] = listen(obj, ControllerInstance)
             obj.passengerListener = ControllerInstance.addpassengerlistener(obj);
         end
         
         function [] = driverrequest(obj)
-            notify(obj, 'DriverRequest');
+            if(obj.timeWait >= obj.timeThreshold ||~strcmp(obj.status, 'waiting'))
+                return
+            else
+                notify(obj, 'DriverRequest');
+            end
         end
-            
+        
+        function [] = wait(obj)
+            obj.timeWait = obj.timeWait + 1;
+            if(obj.timeWait >= obj.timeThreshold)
+                obj.giveup;
+            end
+        end
         
         function [] = plot(obj)
             if(strcmp(obj.status, 'invalid'))

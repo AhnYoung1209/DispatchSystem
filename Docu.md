@@ -45,3 +45,17 @@
 
 ## Region
 - 路是0 人出现的地方是1 不可逾越不可刷新障碍为2
+
+
+## Timer
+- Timer本身控制着Controller的行为
+- 我们定义新的时钟模式，有小时和秒组成，一天13个小时为既定，如果需要增加一天的迭代次数，通过增加秒数来决定。
+- 现在暂时定义的是一个小时有60秒，那么结果就是一天迭代13 * 60 = 780次。
+- Timer本身提供以下的几个信号：
+	- TimeRefresh
+	- StatusBusy
+	- StatusNormal
+	- StatusFree
+	- GeneratePassenger
+	- GenerateDriver
+- 控制器根据这些信号做出具体的响应 

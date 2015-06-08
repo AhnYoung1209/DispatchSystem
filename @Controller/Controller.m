@@ -16,14 +16,16 @@ classdef Controller < handle
         dimRegion1 = 50
         dimRegion2 = 50
         booDebug = 0;
-        
-        refreshgap = 50;
         numDriverExpect = 50;
+        numPassengerExpectThree = [30 50 70];       
         numPassengerExpect = 50;
         disDriverRandom = 5;
         disPassengerTarget = 20;
-        rateDriverLeave = 0.05;
-        rateDriverCome = 0.5;
+        rateDriverComeThree = [0.05 0.05 0.1];
+        rateDriverCome = 0.05;
+        
+        timeWaitBig = [];
+        numGiveUp = 0;
     end
     
     methods
@@ -32,7 +34,13 @@ classdef Controller < handle
             obj.initialization
         end
         
+        function dispversion(obj)            
+            disp(['This is controller with version : ', obj.version]);   
+            disp('Presented for the course of system engineering');
+        end          
+        
         function [] = initialization(obj)
+            obj.dispversion;
             obj.APassenger = Passenger();
             obj.APassenger(obj.maxNumPassenger) = Passenger();
             for i = 1:1:obj.maxNumPassenger
@@ -47,24 +55,41 @@ classdef Controller < handle
             end            
             % obj.MRegion = Region(); 
             % obj.MRegion(obj.dimRegion1, obj.dimRegion2) = obj.MRegion();
+            % Region system is for now closed
             load city_map_50;
             obj.MRegionMap = city_map;      
             obj.hMain = figure;              
             drawnow;
             disp('Please set the timer now');
-            disp('Generating drivers');
-            driverinitialization(obj);            
+            disp('Initializing drivers');
+            disp('Initializing passengers');            
+            driverinitialization(obj);
+            passengerinitialization(obj);
         end
         
-        function lh = settimer(obj, TimerInstance)
-            lh = addlistener(TimerInstance, 'TimeRefresh', ...
+        function [lh1, lh2, lh3, lh4, lh5, lh6] = settimer(obj, TimerInstance)
+            
+            lh1 = addlistener(TimerInstance, 'TimeRefresh', ...
              @(src, event)obj.jump(src, event));
+            lh2 = addlistener(TimerInstance, 'GeneratePassenger', ...
+             @(src, event)obj.generatepassenger(src, event));      
+            lh3 = addlistener(TimerInstance, 'GenerateDriver', ...
+             @(src, event)obj.generatedriver(src, event));
+            lh4 = addlistener(TimerInstance, 'StatusBusy', ...
+             @(src, event)obj.changestatusbusy(src, event));    
+            lh5 = addlistener(TimerInstance, 'StatusNormal', ...
+             @(src, event)obj.changestatusnormal(src, event)); 
+            lh6 = addlistener(TimerInstance, 'StatusFree', ...
+             @(src, event)obj.changestatusfree(src, event));        
+         
             disp('Timer is set, state machine begins to work');
-        end  
-        
-        function lp = addpassengerlistener(obj, passenger)
-            lp = addlistener(passenger, 'DriverRequest', ...
-             @(src, event)obj.requesthandle(src, event));           
+        end          
+
+        function [lp1, lp2] = addpassengerlistener(obj, passenger)
+            lp1 = addlistener(passenger, 'DriverRequest', ...
+             @(src, event)obj.requesthandle(src, event));
+            lp2 = addlistener(passenger, 'GiveUp', ...
+             @(src, event)obj.giveuphandle(src, event));     
         end
         
         function [lf1, lf2] = adddriverlistener(obj, driver)
@@ -72,7 +97,25 @@ classdef Controller < handle
              @(src, event)obj.departhandle(src, event));     
             lf2 = addlistener(driver, 'PassengerArrive', ...
              @(src, event)obj.arrivehandle(src, event));
+        end          
+        
+        function [] = changestatusbusy(obj, ~, ~)
+            obj.numPassengerExpect = obj.numPassengerExpectThree(3);
+            obj.rateDriverCome = obj.rateDriverComeThree(3);
+            disp('Becoming busy');
+        end
+
+        function [] = changestatusnormal(obj, ~, ~)
+            obj.numPassengerExpect = obj.numPassengerExpectThree(2);
+            obj.rateDriverCome = obj.rateDriverComeThree(2);
+            disp('Becoming normal');
         end        
+
+        function [] = changestatusfree(obj, ~, ~)
+            obj.numPassengerExpect = obj.numPassengerExpectThree(1);
+            obj.rateDriverCome = obj.rateDriverComeThree(1);
+            disp('Becoming free');
+        end           
         
         function [] = requesthandle(obj, src, ~)    
             driverIndex = finddriver(obj, src);
@@ -84,8 +127,20 @@ classdef Controller < handle
             end
         end
         
+        function [] = giveuphandle(obj, src, ~)
+            obj.numGiveUp = obj.numGiveUp + 1;
+            obj.numPassenger = obj.numPassenger - 1;
+            if(isempty(src.ownDriver))
+                disp('Give up without responded');
+            else
+                src.ownDriver.returnvalid;
+                disp('Give up with driver responded');
+            end
+        end
+        
         function [] = departhandle(obj, src, ~)
             % target has been set in the driver's method
+            obj.timeWaitBig = [obj.timeWaitBig src.ownPassenger.timeWait];
             src.status = 'talking';
             src.target = src.ownPassenger.target;            
             src.pathplan(obj.MRegionMap);
@@ -93,91 +148,22 @@ classdef Controller < handle
         end
         
         function [] = arrivehandle(obj, src, ~)
-            src.status = 'valid';
-            src.ownPassenger.status = 'invalid';
-            src.posPath = 0;
-            src.path = [];
+            src.ownPassenger.erase;
+            src.returnvalid;
             obj.numPassenger = obj.numPassenger - 1;
-        end
+        end       
+        
         
         % jump is the core function of controller
         % jump is executed every time the timer is updated (with event
         % called TimeRefresh)
-        function [] = jump(obj, src, ~) % src and eventData
-            if(~mod(src.time - 1, obj.refreshgap))
-                obj.generatepassenger 
-            end            
-            obj.updatepassenger
-            if(~mod(src.time - 1, obj.refreshgap))
-                obj.changenumdriver
-            end
-            obj.updatedriver % drivers move torward target
+        function [] = jump(obj, ~, ~) % src and eventData   
+            obj.updatepassenger;
+            obj.updatedriver;
             obj.objplot;
         end
-            
-        function changenumdriver(obj)
-            % updating the driver
-            % come and leave
-            numValidDriver = obj.countvaliddriver;
-            numGener = floor(obj.numDriver * obj.rateDriverCome);
-            numLeave = floor(numValidDriver * obj.rateDriverLeave);
-            countGener = 0;
-            countLeave = 0;
-            for i = 1:1:obj.maxNumDriver
-                if(i == obj.maxNumDriver)
-                    disp('All space for driver is drained');
-                else
-                    if(numGener == 0)
-                        break
-                    end
-                    if(strcmp(obj.ADriver(i).status, 'invalid'))
-                        obj.ADriver(i).coor = targetset(obj.MRegionMap, [obj.dimRegion1/2 ...
-                            obj.dimRegion2/2], obj.dimRegion1/2 - 2);
-                        obj.ADriver(i).target = obj.ADriver(i).coor;
-                        obj.ADriver(i).status = 'valid';
-                        countGener = countGener + 1;
-                        obj.numDriver = obj.numDriver + 1;
-                    end
-                    if(countGener >= numGener)
-                        break;
-                    end
-                end
-            end
-            for i = 1:1:obj.maxNumDriver
-                if(numLeave == 0)
-                    break
-                end
-                if(strcmp(obj.ADriver(i).status, 'valid'))
-                    obj.ADriver(i).coor = [];
-                    obj.ADriver(i).target = [];
-                    obj.ADriver(i).status = 'invalid';
-                    countLeave = countLeave + 1;
-                    obj.numDriver = obj.numDriver - 1;
-                end
-                if(countLeave >= numLeave)
-                    break;
-                end
-            end          
-        end
         
-        function count = countvaliddriver(obj)
-            count = 0;
-            for i = 1:1:obj.maxNumDriver
-                if(strcmp(obj.ADriver(i).status, 'valid'))
-                    count = count + 1;
-                end
-            end
-            if(count == 0)
-                disp('No driver is currently available');
-            end
-        end
-        
-        function dispversion(obj, ~, ~)            
-            disp(['This is controller with vrsion : ', obj.version]);   
-            disp('Presented for the course of system engineering');
-        end
-        
-        function [] = generatepassenger(obj)
+        function [] = generatepassenger(obj, ~, ~)
             % row is Y(in graph)
             logic = calclogicfromregion(obj);
             if(obj.booDebug); figure, imshow(flipud(logic));end
@@ -207,8 +193,49 @@ classdef Controller < handle
                     break;
                 end
             end
+            disp('New passengers are refreshed');
+        end
+            
+        function generatedriver(obj, ~, ~)
+            % updating the driver
+            % come and leave
+            numGener = floor(obj.numDriver * obj.rateDriverCome);
+            countGener = 0;
+            for i = 1:1:obj.maxNumDriver
+                if(i == obj.maxNumDriver)
+                    disp('All space for driver is drained');
+                else
+                    if(numGener == 0)
+                        break
+                    end
+                    if(strcmp(obj.ADriver(i).status, 'invalid'))
+                        obj.ADriver(i).coor = targetset(obj.MRegionMap, [obj.dimRegion1/2 ...
+                            obj.dimRegion2/2], obj.dimRegion1/2 - 2);
+                        obj.ADriver(i).target = obj.ADriver(i).coor;
+                        obj.ADriver(i).status = 'valid';
+                        countGener = countGener + 1;
+                        obj.numDriver = obj.numDriver + 1;
+                    end
+                    if(countGener >= numGener)
+                        break;
+                    end
+                end
+            end
+            disp('New drivers are coming');
         end
         
+        function count = countvaliddriver(obj)
+            count = 0;
+            for i = 1:1:obj.maxNumDriver
+                if(strcmp(obj.ADriver(i).status, 'valid'))
+                    count = count + 1;
+                end
+            end
+            if(count == 0)
+                disp('No driver is currently available');
+            end
+        end      
+     
         function [] = updatepassenger(obj)
             count = 0;
             for i = 1:1:obj.maxNumPassenger
@@ -217,8 +244,14 @@ classdef Controller < handle
                 else
                     count = count + 1;
                     if(strcmp(obj.APassenger(i).status, 'waiting'))
-                        obj.APassenger(i).driverrequest
+                        obj.APassenger(i).wait;
+                        % disp([num2str(obj.APassenger(i).coor), ' ', num2str(obj.APassenger(i).id)]);                        
+                        obj.APassenger(i).driverrequest;
+                        
+                    elseif(strcmp(obj.APassenger(i).status, 'responded'))
+                        obj.APassenger(i).wait;
                     end
+                    
                     if(count == obj.numPassenger)
                         break
                     end
@@ -227,6 +260,7 @@ classdef Controller < handle
         end
         
         function [] = updatedriver(obj)
+            % setdrivertarget must come out first
             obj.setdrivertarget; % only has effect on these without request.
             count = 0;
             for i = 1:1:obj.maxNumDriver
@@ -291,7 +325,7 @@ classdef Controller < handle
                     if(strcmp(obj.APassenger(i).status, 'talking'))
                         continue
                     else
-                    plot(obj.APassenger(i).coor(1), obj.APassenger(i).coor(2), 'b*'); 
+                    plot(obj.APassenger(i).coor(1), obj.APassenger(i).coor(2), 'w*'); 
                     end
                     if(count(1) == obj.numPassenger); break; end
                 end                    
@@ -378,6 +412,12 @@ function [] = driverinitialization(obj)
     end    
 end
 
+function [] = passengerinitialization(obj)
+    % for now, simple initialization is used
+    obj.generatepassenger([], []);
+end
+
+
 function [] = commanddriverafterselected(Dri, Pas, map)    
     Dri.target = Pas.coor;
     % path planning
@@ -385,6 +425,7 @@ function [] = commanddriverafterselected(Dri, Pas, map)
     Dri.status = 'busy';
     Dri.ownPassenger = Pas;
     Dri.ownPassenger.status = 'responded'; % responded waiting talking invalid
+    Dri.ownPassenger.ownDriver = Dri;
 end
 
 function outputCoor = targetset(city_map, coor, distance)

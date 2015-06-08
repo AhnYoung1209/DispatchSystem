@@ -32,7 +32,15 @@ classdef Driver < handle
             if nargin == 0
             end
         end            
-                
+        
+        function [] = returnvalid(obj)
+            obj.posPath = 0;
+            obj.path = [];
+            obj.status = 'valid';
+            obj.ownPassenger = [];
+            obj.target = obj.coor;
+        end
+        
         function [] = listen(obj, ControllerInstance)
             obj.driverListener = ControllerInstance.adddriverlistener(obj);
         end
