@@ -16,6 +16,7 @@ classdef Controller < handle
         dimRegion1 = 50
         dimRegion2 = 50
         booDebug = 0;
+        
         numDriverExpect = 50;
         numPassengerExpectThree = [30 50 70];       
         numPassengerExpect = 50;
