@@ -22,11 +22,20 @@ classdef Controller < handle
         numPassengerExpect = 50;
         disDriverRandom = 5;
         disPassengerTarget = 20;
-        rateDriverComeThree = [0.05 0.05 0.1];
-        rateDriverCome = 0.05;
+        numDriverComeThree = [20 30 40];
+        numDriverCome = 10;
         
         timeWaitBig = [];
+        numTaskDoneBig = [];
+        numTaskDoneTotalBig = [];
+        timeWorkBig = [];
+        mileBig = [];
+        mileWasteBig = [];
+        mileSalaryBig = [];   
+        numGiveUpBig = [];
+        numLeaveBig = [];
         numGiveUp = 0;
+        numLeave = 0;
     end
     
     methods
@@ -93,28 +102,30 @@ classdef Controller < handle
              @(src, event)obj.giveuphandle(src, event));     
         end
         
-        function [lf1, lf2] = adddriverlistener(obj, driver)
+        function [lf1, lf2, lf3] = adddriverlistener(obj, driver)
             lf1 = addlistener(driver, 'PassengerDepart', ...
              @(src, event)obj.departhandle(src, event));     
             lf2 = addlistener(driver, 'PassengerArrive', ...
              @(src, event)obj.arrivehandle(src, event));
+            lf3 = addlistener(driver, 'LeaveWork', ...
+             @(src, event)obj.leavehandle(src, event));         
         end          
         
         function [] = changestatusbusy(obj, ~, ~)
             obj.numPassengerExpect = obj.numPassengerExpectThree(3);
-            obj.rateDriverCome = obj.rateDriverComeThree(3);
+            obj.numDriverCome = obj.numDriverComeThree(3);
             disp('Becoming busy');
         end
 
         function [] = changestatusnormal(obj, ~, ~)
             obj.numPassengerExpect = obj.numPassengerExpectThree(2);
-            obj.rateDriverCome = obj.rateDriverComeThree(2);
+            obj.numDriverCome = obj.numDriverComeThree(2);
             disp('Becoming normal');
         end        
 
         function [] = changestatusfree(obj, ~, ~)
             obj.numPassengerExpect = obj.numPassengerExpectThree(1);
-            obj.rateDriverCome = obj.rateDriverComeThree(1);
+            obj.numDriverCome = obj.numDriverComeThree(1);
             disp('Becoming free');
         end           
         
@@ -151,8 +162,21 @@ classdef Controller < handle
         function [] = arrivehandle(obj, src, ~)
             src.ownPassenger.erase;
             src.returnvalid;
+            src.numTaskDone = src.numTaskDone + 1;
             obj.numPassenger = obj.numPassenger - 1;
-        end       
+        end     
+        
+        function [] = leavehandle(obj, src, ~)
+            obj.numTaskDoneBig = [obj.numTaskDoneBig src.numTaskDone];
+            obj.timeWorkBig = [obj.timeWorkBig src.timeWork];
+            obj.mileBig = [obj.mileBig src.mile];
+            obj.mileSalaryBig = [obj.mileSalaryBig src.mileSalary];
+            obj.mileWasteBig = [obj.mileWasteBig src.mileWaste];
+            src.returninvalid;
+            obj.numDriver = obj.numDriver - 1;
+            disp('A driver leaves his job');
+            obj.numLeave = obj.numLeave + 1;            
+        end          
         
         
         % jump is the core function of controller
@@ -162,6 +186,14 @@ classdef Controller < handle
             obj.updatepassenger;
             obj.updatedriver;
             obj.objplot;
+            % record data 
+            obj.jumprecorddata;
+        end
+        
+        function [] = jumprecorddata(obj)
+            obj.numGiveUpBig = [obj.numGiveUpBig, obj.numGiveUp];
+            obj.numLeaveBig = [obj.numLeaveBig, obj.numLeave];
+            obj.numTaskDoneTotalBig = [obj.numTaskDoneTotalBig, sum(obj.numTaskDoneBig)];
         end
         
         function [] = generatepassenger(obj, ~, ~)
@@ -200,7 +232,7 @@ classdef Controller < handle
         function generatedriver(obj, ~, ~)
             % updating the driver
             % come and leave
-            numGener = floor(obj.numDriver * obj.rateDriverCome);
+            numGener = obj.numDriverCome;
             countGener = 0;
             for i = 1:1:obj.maxNumDriver
                 if(i == obj.maxNumDriver)
@@ -419,7 +451,12 @@ function [] = passengerinitialization(obj)
 end
 
 
-function [] = commanddriverafterselected(Dri, Pas, map)    
+function [] = commanddriverafterselected(Dri, Pas, map)   
+    if(isempty(Dri))
+        % well, if you really can not dispatch a driver
+        disp('No driver can be dispatched');
+        return
+    end
     Dri.target = Pas.coor;
     % path planning
     Dri.pathplan(map);

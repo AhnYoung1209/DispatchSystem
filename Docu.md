@@ -58,4 +58,5 @@
 	- StatusFree
 	- GeneratePassenger
 	- GenerateDriver
-- 控制器根据这些信号做出具体的响应 
+- 控制器根据这些信号做出具体的响应
+

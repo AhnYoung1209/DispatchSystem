@@ -45,7 +45,7 @@ classdef Timer < handle
                 num2str(obj.second), ' second']);
             notify(obj, 'TimeRefresh');
             % the generation signal
-            if(obj.second == 29)
+            if(obj.second == 29 || obj.second == 58)
                 notify(obj, 'GeneratePassenger');
             elseif(obj.second == 59)
                 notify(obj, 'GenerateDriver');
