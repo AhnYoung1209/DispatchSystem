@@ -13,6 +13,7 @@ end
 %%
 disp([num2str(TestController.numGiveUp), ' passengers give up']);
 close all
+
 figure, plot(TestController.timeWaitBig, 'b-', 'linewidth', 3);
 h = legend('Time (Passenger waiting)', 'location', 'north');
 set(h, 'fontsize', 22);
@@ -85,6 +86,14 @@ h = legend('number of driver leaving his job', 'location', 'north');
 set(h, 'fontsize', 22);
 xlabel('second','FontName','Arial','FontSize',22)
 ylabel('number of driver leaving his job','FontName','Arial','FontSize',22)
+set(gca, 'FontSize', 22); set(gca, 'LineWidth', 3');
+maxscreen();
+
+figure, plot(TestController.numZoneBig, 'b-', 'linewidth', 3);
+h = legend('Activity in special zone', 'location', 'north');
+set(h, 'fontsize', 22);
+xlabel('second','FontName','Arial','FontSize',22)
+ylabel('number of activity happened in this zone','FontName','Arial','FontSize',22)
 set(gca, 'FontSize', 22); set(gca, 'LineWidth', 3');
 maxscreen();
 toc

@@ -36,6 +36,9 @@ classdef Controller < handle
         numLeaveBig = [];
         numGiveUp = 0;
         numLeave = 0;
+        
+        numZone = 0;
+        numZoneBig = [];
     end
     
     methods
@@ -194,6 +197,22 @@ classdef Controller < handle
             obj.numGiveUpBig = [obj.numGiveUpBig, obj.numGiveUp];
             obj.numLeaveBig = [obj.numLeaveBig, obj.numLeave];
             obj.numTaskDoneTotalBig = [obj.numTaskDoneTotalBig, sum(obj.numTaskDoneBig)];
+            obj.numZone = 0;
+            count = 0;
+            for i = 1:1:obj.maxNumDriver
+                if(strcmp(obj.ADriver(i).status, 'invalid'))
+                    continue
+                else
+                    count = count + 1;
+                    if((obj.ADriver(i).coor(1) > 15 && obj.ADriver(i).coor(1) < 35) && ...
+                        (obj.ADriver(i).coor(2) > 15 && obj.ADriver(i).coor(2) < 35))
+                        obj.numZone = obj.numZone + 1;
+                    end                 
+                    if(count == obj.numDriver); break; end   
+                end
+            end
+            obj.numZoneBig = [obj.numZoneBig obj.numZone];
+            
         end
         
         function [] = generatepassenger(obj, ~, ~)

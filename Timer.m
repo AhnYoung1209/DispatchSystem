@@ -6,8 +6,8 @@ classdef Timer < handle
         day = 0
         hour = 0
         second = 0 % starting point of time 
-        speed = 1 % speed 
-        carryGener = [12 60];
+        speed = 1 % speed 1
+        carryGener = [13 60];
     end
     properties (Transient)
         timeListener
@@ -37,7 +37,7 @@ classdef Timer < handle
                 obj.hour = obj.hour + 1;
                 obj.second = 0;
             end
-            if(obj.hour >= obj.carryGener(2))
+            if(obj.hour >= obj.carryGener(1))
                 obj.day = obj.day + 1;
                 obj.hour = 0;
             end
